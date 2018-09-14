@@ -61,92 +61,83 @@ object Main
 
   case class ParserException(what: String) extends Exception
 
-  case class Parser()
+  object Parser
   {
-    var string = ""
 
     def parse(input: String): Int =
     {
-      val strip = """\s*(.*)""".r
-      string = input match
+      val strip = """^\s*(.*)\s*$""".r
+      val string = input match
       {
         case strip(rest) => rest
         case _ => ""
       }
-      expression()
+      expression(string)._1
     }
 
-    def expression(): Int =
+    private def expression(string: String): (Int, String) =
     {
-      val left = term()
+      val left = term(string)
       expressionOp(left)
     }
 
-    def term(): Int =
+    private def term(string: String): (Int,String) =
     {
-      val left = factor()
-      termOp(left)
+      val left = factor(string)
+      (termOp(left)._1, left._2)
     }
 
-    def expressionOp(left: Int): Int =
+    private def expressionOp(left: (Int, String)): (Int,String) =
     {
-      string match
+      left._2 match
       {
-        case plus(rest) => string = rest
-          val right = expression()
-          ModMath.add(left, right)
-        case minus(rest) => string = rest
-          val right = expression()
-          ModMath.sub(left, right)
+        case plus(rest) => val right = expression(rest)
+          (ModMath.add(left._1, right._1),right._2)
+        case minus(rest) => val right = expression(rest)
+          (ModMath.sub(left._1, right._1),right._2)
         case _ => left
       }
     }
 
-    def termOp(left: Int): Int =
+    private def termOp(left: (Int, String)): (Int, String) =
     {
-      string match
+      left._2 match
       {
-        case times(rest) => string = rest
-          val right = term()
-          ModMath.mul(left, right)
-        case divide(rest) => string = rest
-          val right = term()
-          ModMath.div(left, right)
+        case times(rest) => val right = term(rest)
+          (ModMath.mul(left._1, right._1), right._2)
+        case divide(rest) => val right = term(rest)
+          (ModMath.div(left._1, right._1), right._2)
         case _ => left
       }
     }
 
-    def factor():Int =
+    private def factor(string: String):(Int, String) =
     {
       string match
       {
-        case number(num, rest) => string = rest
-          num.toInt
-        case plus(rest) => string = rest
-          factor()
-        case minus(rest) => string = rest
-          ModMath.neg(factor())
-        case open(rest) => string = rest
-          val expr = expression()
+        case number(num, rest) => (num.toInt, rest)
+        case plus(rest) => factor(rest)
+        case minus(rest) => val fac = factor(rest)
+          (ModMath.neg(fac._1), fac._2)
+        case open(rest) =>
+          val expr = expression(rest)
           closeBracket(expr)
         case _ => throw ParserException("unexpected symbol, got: " + string)
       }
     }
 
-    def closeBracket(expr: Int): Int =
+    private def closeBracket(expr: (Int, String)): (Int,String) =
     {
-      string match
+      expr._2 match
       {
-        case close(rest) => string = rest
-          expr
-        case _ => throw ParserException("expected closing bracket, got: " + string)
+        case close(rest) => (expr._1,rest)
+        case _ => throw ParserException("expected closing bracket, got: " + expr._2)
       }
     }
   }
 
   def main(args: Array[String]): Unit =
   {
-    val parser = Parser()
-    println(parser.parse("4/-2/(2 + 8)"))
+    println(Parser.parse("4/-2/(2 + 8)"))
   }
 }
